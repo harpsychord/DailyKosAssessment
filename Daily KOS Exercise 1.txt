@@ -1,0 +1,237 @@
+Daily KOS Exercise 1 Answers
+
+In order to automate any of this, we need to define the manual steps first.
+Then it's a matter of using a tool(s) to automate the manual steps we've made.
+Any special notes for automation are included in-line with the tests.
+
+Feature 1 - 8 character minimum for new passwords
+
+Assumptions:
+    Date cutoff for new password requirements is today
+    Older accounts can still login with their non-compliant password until it is either force-expired or they reset it on their own.
+    New password requirements apply to new accounts.
+    8 character minimum, 255 character limit.
+    Contains at least 1 regular character such as a-z A-Z.
+    Contains at least 1 special character such as ()[],./<>?!@#$%^&* and so on.
+    Contains at least 1 number.
+    Does not contain any unicode characters.
+    Older passwords cannot be used.
+    Password resets cause all sessions to expire and require user to login again on all devices/browsers that were logged in.
+
+First test - New Account - Happy Path:
+    1. Begin to create a new account.
+    2. During account creation when asked for a password, attempt the following to ensure proper rejection:
+        - 0 character password
+        - 7 character password with 1 number and 1 special character.
+        - 8+ character password with unicode included.
+        - 8+ character password with no numbers or special characters.
+        - 8+ character password with all numbers
+        - 8+ character password with all special characters.
+        - 256 character password with at least 1 number & 1 special character.
+    3. Finish account creation with 8 character passsword with exactly 1 number and 1 special character.
+
+Second test - Pre-existing Account:
+    1. Login to any account.  Note the password as OLD_PASSWORD
+    2. Change password and attempt the following to ensure rejection:
+        - 0 character password
+        - 7 character password with 1 number and 1 special character.
+        - 8+ character password with unicode included.
+        - 8+ character password with no numbers or special characters.
+        - 8+ character password with all numbers
+        - 8+ character password with all special characters.
+        - 256 character password with at least 1 number & 1 special character.
+        - Attempt to use OLD_PASSWORD
+    3.  Finish password change with a valid 8 character password that has exactly 1 number and 1 special character.
+
+Third test - Test an account with different examples of acceptable passwords.
+    1. Login to any account.
+    2. Navigate to change the password and change it with a 9 character password with 1 number and 1 special character.
+    3. Go back and repeat step 2, but with the following passwords and ensure they are accepted:
+        - 8 character password with 1 character, 6 special characters, and 1 number.
+        - 8 character password with 1 character, 1 special character, and 6 numbers.
+        - 255 character password with 1 character, 253 special characters, and 1 number. (to test for very large passwords)
+        - 255 character password with 1 character, 1 special character, and 253 numbers.
+        - 255 character password with 253 character, 1 special character, and 1 number.
+
+Fourth test - Older account with 7 character password
+    1. Login to account with older 7 character password that hasn't expired.
+    2. See that the user was able to successfully login.
+
+Fifth test - Older account, new password.
+    1. Login to account with older 7 character password that hasn't expired.  Note this password as OLD_PASSWORD.
+    2. See that the user was able to successfully login.
+    3. Go to change password and use a valid password.
+    4. Log out of account.
+    5. Attempt to login with old password.  See that it does not work.
+    6. Attempt to login with new password.  See that user has been logged in.
+    7. Attempt to change password back to OLD_PASSWORD.  This should be rejected.
+
+Sixth test - Password reset.
+    1. Attempt to login to account with incorrect password but note the correct one as OLD_PASSWORD.
+    2. Navigate the "reset password" procedure by clicking on "Reset password" and submitting necessary information.  
+        - Check email and click on password reset link.
+    3. Attempt to change the password with the following and ensure they are rejected.
+        - 0 character password
+        - 7 character password with 1 number and 1 special character.
+        - 8+ character password with unicode included.
+        - 8+ character password with no numbers or special characters.
+        - 8+ character password with all numbers
+        - 8+ character password with all special characters.
+        - 256 character password with at least 1 number & 1 special character.
+        - Attempt to use OLD_PASSWORD
+    4. Finish account creation with 8 character passsword with exactly 1 number and 1 special character.
+
+Seventh test - Password change triggers session expiration across account.
+    1. Login to DEVICE 1 with good account.
+    2. Login to DEVICE 2 with same account.
+    3. Change password via DEVICE 1 with a good password.
+    4. Refresh site on DEVICE 2.  Note that user has been logged out on here.
+
+Feature 2 - The ability to lock a user's account for 2 hours after 5 failed attempts
+
+Assumptions:
+    User is locked out after exactly 5 attempts IN A ROW.
+    After being locked out but within the 2 hour period: further attempts, even with correct password, reset the 2 hour lockout timer.
+    User is suggested to reset their password along with the lockout message.
+    If user resets their password then the lock expires.
+    If user is locked out, all sessions attached to user will immediately expire and be logged out.
+        Example - User is logged in on their phone and locks the account by attempting to login with their computer.
+    Database contains values for last attempted login and lockout expiration date.  If lockout date is null, account is not locked out.
+    Database also contains a value for attempted failed logins.  When the user successfully logs in or resets their password, this counter is set to 0.
+    After lockout has expired, if the user attempts to login and gives the incorrect password the lockout is renewed.
+        NOTE: This is to prevent hacking by submitting 5 passwords, waiting 2 hours, then trying 5 more.  We shouldn't allow that.
+
+First test - Happy path
+    1.  Attempt to login into an account with an incorrect password 5 times.
+    2.  See that the user is locked out with an error message with an offer to reset the password.
+    3.  Use database tool to query user account and note when lockout will expire.  
+        - We should be able to query last login attempt date and lockout expiration date.
+        - The lockout expiration date should be 2 hours ahead of the last login attempt date.
+    4.  Wait 2 hours of real time.
+        - We can get around this by changing the lockout expiration date in the database for automation purposes to a time in the past.
+    5.  Login to account with correct password.  There should be no errors or lockout message.
+
+Second test - User keeps forgetting their password and locking their account over and over.
+    1.  Attempt to login into an account with an incorrect password 5 times.
+    2.  See that the user is locked out with an error message with an offer to reset the password.
+    3.  Check database for lockout expiration date and note it.
+    4.  In the database, modify the expiration date by having it expire an hour earlier.
+    5.  Query the database to ensure the modification was successful.
+    6.  Attempt to login with the account again with the correct password.  Since the lockout is still in effect we should be given an error message again.
+    7.  Query the database and see that the lockout expiration date has changed and is now 2 hours from time of last attempted login.
+
+Third test - Resetting password lifts the lockout
+    1.  Attempt to login into an account with an incorrect password 5 times.
+    2.  See that the user is locked out with an error message with an offer to reset the password.
+    3.  Click on the link to reset the password.  Check password reset email is sent out and the user clicks on the link from it.
+    4.  In the reset password modal, test the following to ensure password is rejected:
+        - 0 character password
+        - 7 character password with 1 number and 1 special character.
+        - 8+ character password with unicode included.
+        - 8+ character password with no numbers or special characters.
+        - 8+ character password with all numbers
+        - 8+ character password with all special character.
+        - 256 character password with at least 1 number & 1 special character.
+        - Attempt to use OLD_PASSWORD
+    5.  Finish password reset with a valid 8 character password that has exactly 1 number and 1 special character.
+    6.  User is prompted to login again and does so with correct password.
+    7.  User has successfully logged in.
+
+Fourth test - Lockout logs all sessions for the user out.
+    1.  Login to account successfully on one browser/session/device.  Note as DEVICE 1.
+    2.  Attempt to login on another session/browser/device and use an incorrect password 5 times.  Note as DEVICE 2.
+    3.  Check database for last attempted login and lockout expiration date.  Note as LOCKOUT_DATE.
+    4.  Refresh page for browser/session/device in Step 1.  They should now show as logged out.
+    5.  Attempt to login with correct password on DEVICE 1.  See that the user is locked out.
+    6.  Further attempts will prolong the lockout, check database and see that it is different from LOCKOUT_DATE.
+
+Fifth test - 4 failed attempts with attempt 5 working.
+    1. Attempt to login to account with incorrect password 4 times.
+    2. Check database for account and note that lockout date has not been set.
+    3. Attempt to login to account with correct password.
+    4. User is able to successfully login.
+
+Sixth test - Lockout expired but user inputs incorrect password again.
+    1.  Attempt to login into an account with an incorrect password 5 times.
+    2.  See that the user is locked out with an error message with an offer to reset the password.
+    3.  Use database tool to query user account and note when lockout will expire.  
+        - We should be able to query last login attempt date and lockout expiration date.
+        - The lockout expiration date should be 2 hours ahead of the last login attempt date.
+    4.  Wait 2 hours of real time.
+        - We can get around this by changing the lockout expiration date in the database for automation purposes to a time in the past.
+    5.  Login to account with incorrect password.  Lockout message should show.
+    6.  Check database and note that lockout expiration date is now 2 more hours in the future.
+
+Feature 3 - The ability for administrators to force-expire a password older than a variable specific date and walk the user through selection of a new password
+
+Assumptions:
+    Force-expiration is performed in an admin console/page.
+    Force-expiration cannot expire admin passwords as this would cause admins to expire each other or themselves.
+    User is given an inline modal to reset their password to continue.
+    When expiration is forced, modal will appear on next login.
+    If user is logged in when expiration is forced, they are logged out and required to log back in.
+    Same rules for the new password above apply to this password, same/older passwords cannot be used.
+    Multiple instances of the password reset modal can appear across multiple devices, however only the first successful password change is accepted.
+    Database contains a column noting the time an account's password was last set.
+
+First test - User's account password is force-expired.
+    1. For a particular non-admin user account:
+        - Note the value for the password's last set date.  Save as SET_DATE.
+        - Note the old password as OLD_PASSWORD.
+    2. Login as this user on DEVICE 1.
+    3. In a separate browser/session/device DEVICE 2, login as admin and navigate to force-expiration feature.
+    4. Put in a date after SET_DATE and execute the expiration.
+    5. On DEVICE 1, refresh the page.  See that the user is forcefully logged out.
+    6. On DEVICE 1, log back in.  See new modal appear to change password and notifying user that their password has expired.
+    7. User should attempt to try the invalid set of password tests to ensure proper password requirements:
+        - 0 character password
+        - 7 character password with 1 number and 1 special character.
+        - 8+ character password with unicode included.
+        - 8+ character password with no numbers or special characters.
+        - 8+ character password with all numbers
+        - 8+ character password with all special characters.
+        - 256 character password with at least 1 number & 1 special character.
+        - Attempt to use OLD_PASSWORD
+    8. User should choose a new password that meets the conditions that have been set in the password requirements earlier in this document.
+    9. After user has chosen a new password, they are logged in.
+    10. Check the database for this account and ensure that password's last set date newer than SET_DATE noted earlier.
+
+Second test - User account's password is newer than force-expired date.
+    1. For a particular non-admin user account:
+        - Note the value for the password's last set date.  Save as SET_DATE.
+    2. Login as this user on DEVICE 1.
+    3. In a separate browser/session/device DEVICE 2, login as admin and navigate to force-expiration feature.
+    4. Put in a date before SET_DATE and execute the expiration.
+    5. On DEVICE 1, refresh the page.  See that the user is still logged in.
+
+Third test - Race condition.
+    1. For a particular non-admin user account:
+        - Note the value for the password's last set date.  Save as SET_DATE.
+    2. Login as this user on DEVICE 1.
+    3. Login as this user on a second device noted as DEVICE 2.
+    4. On a third session/browser/device DEVICE 3, login as admin and navigate to the force-expiration feature.
+    5. Put in a date after SET_DATE and execute the expiration, DEVICE 1 and 2 are logged out.
+    6. On DEVICE 1, after logging back in, set a known good password in the walkthrough and wait.  Do not submit.
+    7. On DEVICE 2, after logging back in, set a different known good password in the walkthrough and submit it.
+    8. Check database to ensure the password's last set date for the account has been updated.  Save as NEW_DATE.
+    9. User should now be logged in on DEVICE 2.
+    10. On DEVICE 1, submit the new password.  This should be rejected and the user should be logged out.
+    11. Check database to ensure the password's last set date for the account has not changed as is still NEW_DATE as noted earlier.
+    12. On DEVICE 1, log back in with new password inputted for DEVICE 2.  User should be able to log in successfully.
+
+Fourth test - Ensure admin accounts are not affected.
+    1. For a particular admin user account:
+        - Note the value for the password's last set date.  Save as SET_DATE.
+    2. Login as this user on DEVICE 1.
+    3. In a separate browser/session/device DEVICE 2, login as the same admin and navigate to force-expiration feature.
+    4. Put in a date after SET_DATE and execute the expiration.
+    5. On DEVICE 1, refresh the page.  See that the admin is still logged in.
+    6. Do the same for DEVICE 2.  See that the admin is still logged in here as well.
+
+Note:
+    For above tests that note DEVICE 1, 2, and/or 3 we should repeat these tests for different accounts, different browsers, and different devices.
+
+For multiple accounts:
+    All of the above would apply.
+    Automation would be best suited for this and we can test across multiple browsers/devices/users.
+    Selenium can spawn multiple sessions, which is perfectly suited for this particular case.
